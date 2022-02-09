@@ -1,11 +1,10 @@
 package dartsgame.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.server.ResponseStatusException;
 
-@ResponseStatus(code = HttpStatus.BAD_REQUEST, reason = "Wrong target score!")
-public class WrongTargetScoreException extends RuntimeException {
+public class WrongTargetScoreException extends ResponseStatusException {
     public WrongTargetScoreException() {
-        super();
+        super(HttpStatus.BAD_REQUEST, "Wrong target score!");
     }
 }
