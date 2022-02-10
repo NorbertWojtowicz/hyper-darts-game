@@ -1,6 +1,7 @@
 package dartsgame.service;
 
 import dartsgame.controller.dto.TargetScoreDto;
+import dartsgame.controller.dto.ThrowDto;
 import dartsgame.exception.*;
 import dartsgame.repository.GameRepository;
 import dartsgame.model.Game;
@@ -16,7 +17,7 @@ public class GameService {
     private final GameRepository gameRepository;
 
     public Game createGame(TargetScoreDto targetScore, String playerOne) {
-        Game unfinishedGame = gameRepository.findGameByPlayerOneLikeOrPlayerTwoLikeAndGameStatusNotLike(playerOne, playerOne, "created");
+        Game unfinishedGame = gameRepository.findUnfinishedGameForPlayer(playerOne);
         targetScore.validate();
         checkIfUnfinishedGameExist(unfinishedGame);
         Game newGame = new Game();
@@ -34,12 +35,23 @@ public class GameService {
         }
     }
 
-    public Game getCurrentGame(String name) {
-        Game currentGame = gameRepository.findGameByPlayerOneLikeAndGameStatusNotLike(name, "%wins!");
+    public Game getCurrentOrLastGame(String name) {
+        Game currentGame = gameRepository.findCurrentGame(name);
+        if (currentGame == null) {
+            currentGame = findLastGame(name);
+        }
         if (currentGame == null) {
             throw new GameNotExistEmptyBodyException();
         }
         return currentGame;
+    }
+
+    private Game findLastGame(String name) {
+        List<Game> games = gameRepository.findLastGames(name);
+        if (games.size() == 0) {
+            return null;
+        }
+        return games.get(0);
     }
 
     public List<Game> getAllGames() {
@@ -67,7 +79,7 @@ public class GameService {
         if (!game.getGameStatus().equals("created")) {
             throw new CantJoinGameException();
         }
-        Game unfinishedGame = gameRepository.findGameByPlayerOneLikeOrPlayerTwoLikeAndGameStatusNotLike(player, player, "created");
+        Game unfinishedGame = gameRepository.findUnfinishedGameForPlayer(player);
         checkIfUnfinishedGameExist(unfinishedGame);
     }
 
@@ -75,5 +87,23 @@ public class GameService {
         if (game == null) {
             throw new GameNotExistException();
         }
+    }
+
+    @Transactional
+    public Game throwDart(ThrowDto throwDto, String player) {
+        Game game = getCurrentGame(player);
+        if (game == null) {
+            throw new NoGamesAvailableException();
+        }
+        if (!game.getTurn().equals(player)) {
+            throw new WrongTurnException();
+        }
+        int playerNumber = game.getPlayerOne().equals(player) ? 1 : 2;
+        game.throwDarts(playerNumber, throwDto);
+        return game;
+    }
+
+    private Game getCurrentGame(String player) {
+        return gameRepository.findCurrentGame(player);
     }
 }
