@@ -1,14 +1,22 @@
 package dartsgame.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import dartsgame.controller.dto.Shot;
 import dartsgame.controller.dto.ThrowDto;
+import dartsgame.exception.WrongStatusException;
 import dartsgame.exception.WrongThrowException;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 
 @Entity
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Game {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,11 +27,8 @@ public class Game {
     private int playerOneScores;
     private int playerTwoScores;
     private String turn;
-
-    public void setPlayersScores(int playersScores) {
-        this.playerOneScores = playersScores;
-        this.playerTwoScores = playersScores;
-    }
+    @JsonIgnore
+    private boolean gameOver;
 
     public void throwDarts(int playerNumber, ThrowDto throwDto) {
         int playerTemporaryScore = getPlayerScore(playerNumber);
@@ -73,6 +78,7 @@ public class Game {
     private void finishGameWithWinner(int playerNumber) {
         setGameStatus(getPlayerName(playerNumber) + " wins!");
         setPlayerScore(playerNumber, 0);
+        setGameOver(true);
     }
 
     private String getPlayerName(int playerNumber) {
@@ -95,5 +101,31 @@ public class Game {
         } else {
             setPlayerTwoScores(score);
         }
+    }
+
+    public void cancelGame(String status) {
+        validateStatus(status);
+        setGameStatus(status);
+        setGameOver(true);
+    }
+
+    private void validateStatus(String status) {
+        String statusPrefix = status.split(" wins!")[0];
+        // The status field must have the following format: <"Player Name" or "Nobody"> wins!
+        if (!statusPrefix.equals(playerOne) && !statusPrefix.equals(playerTwo) && !statusPrefix.equals("Nobody")) {
+            throw new WrongStatusException();
+        }
+    }
+
+    public static Game fromGameMove(GameMove gameMove) {
+        return Game.builder()
+                .gameId(gameMove.getGameId())
+                .playerOne(gameMove.getPlayerOne())
+                .playerTwo(gameMove.getPlayerTwo())
+                .gameStatus(gameMove.getGameStatus())
+                .playerOneScores(gameMove.getPlayerOneScores())
+                .playerTwoScores(gameMove.getPlayerTwoScores())
+                .turn(gameMove.getTurn())
+                .build();
     }
 }

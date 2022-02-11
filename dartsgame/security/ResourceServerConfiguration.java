@@ -42,10 +42,14 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
     public void configure(final HttpSecurity http) throws Exception {
         http
                 .authorizeRequests()
+                .antMatchers(HttpMethod.GET, "/api/history/**")
+                .access("(#oauth2.hasScope('read'))")
                 .antMatchers(HttpMethod.GET, "/**")
                 .access("(#oauth2.hasScope('read') and hasRole('ROLE_GAMER'))")
                 .antMatchers(HttpMethod.POST, "/**")
                 .access("(#oauth2.hasScope('write') and hasRole('ROLE_GAMER'))")
+                .antMatchers(HttpMethod.PUT, "/**")
+                .access("(#oauth2.hasScope('update') and hasRole('ROLE_REFEREE'))")
                 .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)

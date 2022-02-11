@@ -1,8 +1,10 @@
 package dartsgame.service;
 
+import dartsgame.controller.dto.RollBackDto;
 import dartsgame.controller.dto.TargetScoreDto;
 import dartsgame.controller.dto.ThrowDto;
 import dartsgame.exception.*;
+import dartsgame.model.GameMove;
 import dartsgame.repository.GameRepository;
 import dartsgame.model.Game;
 import lombok.RequiredArgsConstructor;
@@ -15,17 +17,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GameService {
     private final GameRepository gameRepository;
+    private final GamesHistoriesManager gamesHistoriesManager;
 
     public Game createGame(TargetScoreDto targetScore, String playerOne) {
         Game unfinishedGame = gameRepository.findUnfinishedGameForPlayer(playerOne);
         targetScore.validate();
         checkIfUnfinishedGameExist(unfinishedGame);
-        Game newGame = new Game();
-        newGame.setGameStatus("created");
-        newGame.setPlayerOne(playerOne);
-        newGame.setPlayerTwo("");
-        newGame.setPlayersScores(targetScore.getTargetScore());
-        newGame.setTurn(playerOne);
+        Game newGame = Game.builder()
+                .gameStatus("created")
+                .playerOne(playerOne)
+                .playerTwo("")
+                .playerOneScores(targetScore.getTargetScore())
+                .playerTwoScores(targetScore.getTargetScore())
+                .turn(playerOne)
+                .build();
         return gameRepository.save(newGame);
     }
 
@@ -68,6 +73,7 @@ public class GameService {
         validateGameAndPlayer(game, player);
         game.setGameStatus("started");
         game.setPlayerTwo(player);
+        gamesHistoriesManager.addMove(game);
         return game;
     }
 
@@ -100,10 +106,59 @@ public class GameService {
         }
         int playerNumber = game.getPlayerOne().equals(player) ? 1 : 2;
         game.throwDarts(playerNumber, throwDto);
+        gamesHistoriesManager.addMove(game);
         return game;
     }
 
     private Game getCurrentGame(String player) {
         return gameRepository.findCurrentGame(player);
+    }
+
+    @Transactional
+    public Game cancelGame(String status, int gameId) {
+        Game game = gameRepository.findGameByGameId(gameId);
+        checkIfGameExist(game);
+        checkIfGameIsAlreadyOver(game);
+        game.cancelGame(status);
+        return game;
+    }
+
+    private void checkIfGameIsAlreadyOver(Game game) {
+        if (game.isGameOver()) {
+            throw new GameAlreadyOverException();
+        }
+    }
+
+    @Transactional
+    public Game rollbackToState(RollBackDto rollbackDto) {
+        Game rollbackGame = gameRepository.findGameByGameId(rollbackDto.getGameId());
+        checkIfGameExist(rollbackGame);
+        checkIfMoveIsFound(rollbackDto);
+        checkIfGameIsOver(rollbackGame);
+        GameMove rollbackGameMove = gamesHistoriesManager.
+                getRollbackState(rollbackDto.getGameId(), rollbackDto.getMove());
+        rollbackGame = Game.fromGameMove(rollbackGameMove);
+        return rollbackGame;
+    }
+
+    private void checkIfGameIsOver(Game game) {
+        if (game.isGameOver()) {
+            throw new GameOverException();
+        }
+    }
+
+    private void checkIfMoveIsFound(RollBackDto rollbackDto) {
+        GameHistory gameHistory = gamesHistoriesManager.getGameHistory(rollbackDto.getGameId());
+        if (gameHistory.getMoveNumber() <= rollbackDto.getMove()) {
+            throw new MoveNotFoundException();
+        }
+        if (gameHistory.getMoveNumber() - 1 == rollbackDto.getMove()) {
+            throw new NothingToRevertException();
+        }
+    }
+
+    public List<GameMove> getMovesForGameId(Long gameId) {
+        checkIfGameExist(gameRepository.findGameByGameId(gameId));
+        return gamesHistoriesManager.getMovesForGameId(gameId);
     }
 }

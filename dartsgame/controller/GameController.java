@@ -1,5 +1,7 @@
 package dartsgame.controller;
 
+import dartsgame.controller.dto.CancelGameDto;
+import dartsgame.controller.dto.RollBackDto;
 import dartsgame.controller.dto.TargetScoreDto;
 import dartsgame.controller.dto.ThrowDto;
 import dartsgame.model.Game;
@@ -49,5 +51,17 @@ public class GameController {
                                           @RequestBody ThrowDto throwDto) {
         return ResponseEntity
                 .ok(gameService.throwDart(throwDto, auth.getName()));
+    }
+
+    @PutMapping("/cancel")
+    public ResponseEntity<Game> cancelGame(@RequestBody CancelGameDto cancelGameDto) {
+        return ResponseEntity
+                .ok(gameService.cancelGame(cancelGameDto.getStatus(), cancelGameDto.getGameId()));
+    }
+
+    @PutMapping("/revert")
+    public ResponseEntity<Game> rollbackToState(@RequestBody RollBackDto rollbackDto) {
+        return ResponseEntity
+                .ok(gameService.rollbackToState(rollbackDto));
     }
 }

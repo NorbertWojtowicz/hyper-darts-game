@@ -26,7 +26,11 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .and()
                 .withUser("admin@acme.com")
                 .password("{noop}zy0y3bMvyA6T")
-                .roles("ADMIN");
+                .roles("ADMIN")
+                .and()
+                .withUser("judgedredd@acme.com")
+                .password("{noop}iAmALaw100500")
+                .roles("REFEREE");
     }
 
     @Bean
